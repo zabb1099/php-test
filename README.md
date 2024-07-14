@@ -1,3 +1,15 @@
+Zavian
+Pokemon API application
+This application was built using docker
+-Copy docker-compose.example file and put it into a docker-compose.yml file
+-Copy the env.example file and put it into a .env file
+To Start the project environment run the following commands:
+-docker-compose up -d --build
+-docker-compose run --rm composer install
+-docker-compose run --rm npm install
+-docker-compose run --rm npm run watch
+
+
 # ans/pokédex
 
 **This project will depend on your ability to fulfil the task 
