@@ -1,0 +1,109 @@
+#Docker Networks
+networks:
+  laravel:
+    driver: bridge
+#volumes
+volumes:
+  mysql-data: 
+    driver: local
+
+# Workflow
+services:
+  nginx:
+    build:
+      context: .
+      dockerfile: ./compose/nginx/Dockerfile
+    container_name: "${DOCKER_PROJECT_PREFIX}-nginx"
+    ports:
+      - "${DOCKER_NGINX_PORT}:80"
+      # Port for xdebug (ensure this matches the remote_port in the xdebug.ini)
+      - "${DOCKER_NGINX_PORT_XDEBUG}:9001"
+    volumes:
+      - ./source:/var/www/html:delegated
+    depends_on:
+      - php
+      - mysql
+    networks:
+      - laravel
+
+
+  mysql:
+    image: mysql:5.7.32
+    container_name: "${DOCKER_PROJECT_PREFIX}-mysql"
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: "${DOCKER_PROJECT_PREFIX}"
+    ports:
+      - "${DOCKER_MYSQL_PORT}:3306"
+    volumes:
+      - mysql-data:/var/lib/mysql
+    networks:
+      - laravel
+
+
+
+  redis:
+    image: "redis:alpine"
+    container_name: "${DOCKER_PROJECT_PREFIX}-redis"
+    restart: unless-stopped
+    ports:
+      - "${DOCKER_REDIS_PORT}:6379"
+    networks:
+      - laravel
+
+ 
+
+  php:
+    build:
+      context: .
+      dockerfile: ./compose/php/Dockerfile
+    container_name: "${DOCKER_PROJECT_PREFIX}-php"
+    volumes:
+      - ./source:/var/www/html:delegated
+      # Enable xdebug
+      - ./compose/php/xdebug.ini:/usr/local/etc/php/conf.d/docker-php-ext-xdebug.ini
+    ports:
+      - "${DOCKER_PHP_PORT}:9000"
+    networks:
+      - laravel
+
+  composer:
+    build:
+      context: .
+      dockerfile: ./compose/php/composer/Dockerfile
+    container_name: "${DOCKER_PROJECT_PREFIX}-composer"
+    volumes:
+      - ./source:/var/www/html
+    working_dir: /var/www/html
+    depends_on:
+      - php
+    user: laravel
+    networks:
+      - laravel
+    entrypoint: ['composer']
+
+  npm:
+    image: node:latest
+    container_name: "${DOCKER_PROJECT_PREFIX}-npm"
+    volumes:
+      - ./source:/var/www/html
+    working_dir: /var/www/html
+    entrypoint: ['npm']
+    environment:
+      CHOKIDAR_USEPOLLING: 1
+
+  artisan:
+    build:
+      context: .
+      dockerfile: ./compose/php/Dockerfile
+    container_name: "${DOCKER_PROJECT_PREFIX}-artisan"
+    volumes:
+      - ./source:/var/www/html:delegated
+    depends_on:
+      - mysql
+    working_dir: /var/www/html
+    user: laravel
+    entrypoint: ['php', '/var/www/html/artisan']
+    networks:
+      - laravel
